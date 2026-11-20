@@ -20,9 +20,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   const passphrase = process.env.OUTREACH_PASSPHRASE;
-  if (!passphrase) throw new Error('OUTREACH_PASSPHRASE secret is not set');
   const secrets = process.env; // MAILBOX_1 … MAILBOX_20 are mapped in the workflow
-  if (!existsSync(CONFIG)) { log('No data/config.enc.json yet. Save settings in the dashboard first.'); return; }
+  if (!existsSync(CONFIG)) { log('Not set up yet: open the dashboard and connect this repo.'); return; }
+  if (!passphrase) throw new Error('OUTREACH_PASSPHRASE secret is not set. Save it again from the dashboard Settings page');
 
   const config = await decryptJSON(JSON.parse(await readFile(CONFIG, 'utf8')), passphrase);
   const activity = existsSync(ACTIVITY)
