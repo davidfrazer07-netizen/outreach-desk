@@ -11,7 +11,7 @@ Cold email sequences sent from your own mailboxes. It has A/B templates, follow-
 
 1. **Token.** Create a fine-grained personal access token at GitHub → Settings → Developer settings. Limit it to this repository, with **Contents**, **Actions** and **Secrets** set to read and write.
 2. **Open the dashboard** at `https://<owner>.github.io/outreach-desk/`. Enter the token and choose a passphrase of 12 or more characters. The dashboard creates your encrypted config and saves the passphrase as the `OUTREACH_PASSPHRASE` secret for the engine.
-3. **Add mailboxes** (Mailboxes → Add mailbox). For Gmail or Workspace, turn on 2-step verification and create an app password. The password is stored as a `MAILBOX_<ID>` secret.
+3. **Add mailboxes** (Mailboxes → Add mailbox). For Gmail or Workspace, turn on 2-step verification and create an app password. The password is stored in a numbered secret (`MAILBOX_1` to `MAILBOX_20`), so up to 20 mailboxes are supported.
 4. **Open tracking** (optional, but the opened and not-opened branches need it):
    ```sh
    cd worker

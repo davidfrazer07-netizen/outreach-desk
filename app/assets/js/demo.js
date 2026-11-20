@@ -14,9 +14,9 @@ export function makeDemo() {
   config.settings.notifyEmail = 'you@yourco.in';
   config.settings.trackerUrl = 'https://outreach-tracker.example.workers.dev';
   config.mailboxes = [
-    { id: 'mb1rah', label: 'Rahul', fromName: 'Rahul Verma', email: 'rahul@yourco.in', user: 'rahul@yourco.in', smtpHost: 'smtp.gmail.com', smtpPort: 465, imapHost: 'imap.gmail.com', imapPort: 993, dailyLimit: 10, signature: 'Rahul Verma\nGrowth, YourCo' },
-    { id: 'mb2ana', label: 'Ananya', fromName: 'Ananya Rao', email: 'ananya@yourco.in', user: 'ananya@yourco.in', smtpHost: 'smtp.gmail.com', smtpPort: 465, imapHost: 'imap.gmail.com', imapPort: 993, dailyLimit: 5, signature: 'Ananya Rao\nYourCo' },
-    { id: 'mb3hel', label: 'Hello', fromName: 'YourCo team', email: 'hello@tryyourco.in', user: 'hello@tryyourco.in', smtpHost: 'smtp.zoho.in', smtpPort: 465, imapHost: 'imap.zoho.in', imapPort: 993, dailyLimit: 25, signature: 'The YourCo team' },
+    { id: 'mb1rah', slot: 1, label: 'Rahul', fromName: 'Rahul Verma', email: 'rahul@yourco.in', user: 'rahul@yourco.in', smtpHost: 'smtp.gmail.com', smtpPort: 465, imapHost: 'imap.gmail.com', imapPort: 993, dailyLimit: 10, signature: 'Rahul Verma\nGrowth, YourCo' },
+    { id: 'mb2ana', slot: 2, label: 'Ananya', fromName: 'Ananya Rao', email: 'ananya@yourco.in', user: 'ananya@yourco.in', smtpHost: 'smtp.gmail.com', smtpPort: 465, imapHost: 'imap.gmail.com', imapPort: 993, dailyLimit: 5, signature: 'Ananya Rao\nYourCo' },
+    { id: 'mb3hel', slot: 3, label: 'Hello', fromName: 'YourCo team', email: 'hello@tryyourco.in', user: 'hello@tryyourco.in', smtpHost: 'smtp.zoho.in', smtpPort: 465, imapHost: 'imap.zoho.in', imapPort: 993, dailyLimit: 25, signature: 'The YourCo team' },
   ];
   config.templates = [
     { id: 't1', name: 'Reorders: question', subject: 'Quick question about {{company}}', body: 'Hi {{first_name}},\n\nHow are repeat orders tracked at {{company}} today? Most {{industry|D2C}} teams we speak with find out a customer has churned weeks after it happens.\n\nWe built a small tool that flags it the day a reorder is late. Worth a 15 minute look next week?' },

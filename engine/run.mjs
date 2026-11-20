@@ -7,7 +7,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { encryptJSON, decryptJSON, randomId } from '../app/assets/js/core/crypto.js';
 import { planRun, recordSend, bump, bumpVariant, pushEvent, emptyActivity, zoned } from '../app/assets/js/core/schedule.js';
-import { buildMessage, send, scanInbox, notifyMail, closeTransports, passwordFor } from './mail.mjs';
+import { buildMessage, send, scanInbox, notifyMail, closeTransports, passwordFor, secretName } from './mail.mjs';
 import { pullTracker } from './tracker.mjs';
 
 const ROOT = process.env.DATA_DIR ? new URL(`file://${process.env.DATA_DIR.replace(/\/?$/, '/')}`) : new URL('../data/', import.meta.url);
@@ -21,8 +21,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function main() {
   const passphrase = process.env.OUTREACH_PASSPHRASE;
   if (!passphrase) throw new Error('OUTREACH_PASSPHRASE secret is not set');
-  let secrets = {};
-  try { secrets = JSON.parse(process.env.SECRETS_JSON || '{}'); } catch { /* none */ }
+  const secrets = process.env; // MAILBOX_1 … MAILBOX_20 are mapped in the workflow
   if (!existsSync(CONFIG)) { log('No data/config.enc.json yet. Save settings in the dashboard first.'); return; }
 
   const config = await decryptJSON(JSON.parse(await readFile(CONFIG, 'utf8')), passphrase);
@@ -77,7 +76,7 @@ async function main() {
   const newReplies = [];
   for (const mb of config.mailboxes) {
     if (!passwordFor(mb, secrets)) {
-      activity.mailboxStatus[mb.id] = { ...activity.mailboxStatus[mb.id], ok: false, error: `Secret MAILBOX_${mb.id.toUpperCase()} is missing`, checkedAt: now.toISOString() };
+      activity.mailboxStatus[mb.id] = { ...activity.mailboxStatus[mb.id], ok: false, error: `Secret ${secretName(mb)} is missing`, checkedAt: now.toISOString() };
       continue;
     }
     const lookup = {

@@ -32,7 +32,26 @@ jobs:
         env:
           OUTREACH_PASSPHRASE: ${{ secrets.OUTREACH_PASSPHRASE }}
           TRACKER_TOKEN: ${{ secrets.TRACKER_TOKEN }}
-          SECRETS_JSON: ${{ toJSON(secrets) }}
+          MAILBOX_1: ${{ secrets.MAILBOX_1 }}
+          MAILBOX_2: ${{ secrets.MAILBOX_2 }}
+          MAILBOX_3: ${{ secrets.MAILBOX_3 }}
+          MAILBOX_4: ${{ secrets.MAILBOX_4 }}
+          MAILBOX_5: ${{ secrets.MAILBOX_5 }}
+          MAILBOX_6: ${{ secrets.MAILBOX_6 }}
+          MAILBOX_7: ${{ secrets.MAILBOX_7 }}
+          MAILBOX_8: ${{ secrets.MAILBOX_8 }}
+          MAILBOX_9: ${{ secrets.MAILBOX_9 }}
+          MAILBOX_10: ${{ secrets.MAILBOX_10 }}
+          MAILBOX_11: ${{ secrets.MAILBOX_11 }}
+          MAILBOX_12: ${{ secrets.MAILBOX_12 }}
+          MAILBOX_13: ${{ secrets.MAILBOX_13 }}
+          MAILBOX_14: ${{ secrets.MAILBOX_14 }}
+          MAILBOX_15: ${{ secrets.MAILBOX_15 }}
+          MAILBOX_16: ${{ secrets.MAILBOX_16 }}
+          MAILBOX_17: ${{ secrets.MAILBOX_17 }}
+          MAILBOX_18: ${{ secrets.MAILBOX_18 }}
+          MAILBOX_19: ${{ secrets.MAILBOX_19 }}
+          MAILBOX_20: ${{ secrets.MAILBOX_20 }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         run: node engine/run.mjs
       - name: Save activity

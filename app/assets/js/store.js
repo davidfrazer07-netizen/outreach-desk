@@ -198,4 +198,10 @@ export async function setSecret(name, value) {
 }
 
 export const newId = () => randomId(6);
-export const secretName = (mailbox) => `MAILBOX_${mailbox.id.toUpperCase()}`;
+export const MAX_MAILBOXES = 20;
+export const secretName = (mailbox) => `MAILBOX_${mailbox.slot}`;
+export function freeSlot() {
+  const used = new Set(state.config.mailboxes.map((m) => m.slot));
+  for (let i = 1; i <= MAX_MAILBOXES; i++) if (!used.has(i)) return i;
+  return null;
+}

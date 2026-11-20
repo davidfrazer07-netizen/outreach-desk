@@ -1,5 +1,5 @@
 import { html, icon, $$, fmt, toast, dialog, confirmDialog, ago } from '../ui.js';
-import { state, update, newId, setSecret, secretName } from '../store.js';
+import { state, update, newId, setSecret, secretName, freeSlot, MAX_MAILBOXES } from '../store.js';
 import { mailboxToday } from '../core/stats.js';
 import { zoned } from '../core/schedule.js';
 import { isEmail } from '../core/csv.js';
@@ -17,7 +17,8 @@ function presetFor(m) {
 }
 
 async function editMailbox(existing) {
-  const m = existing || { id: newId(), dailyLimit: 20, smtpPort: 465, imapPort: 993, ...PRESETS.gmail };
+  if (!existing && !freeSlot()) { toast(`Up to ${MAX_MAILBOXES} mailboxes are supported`); return; }
+  const m = existing || { id: newId(), slot: freeSlot(), dailyLimit: 20, smtpPort: 465, imapPort: 993, ...PRESETS.gmail };
   const pk = presetFor(existing);
   const hasPass = state.secrets.has(secretName(m));
   const res = await dialog({

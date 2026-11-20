@@ -39,7 +39,7 @@ test('engine dry run plans sends and saves encrypted activity', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'outreach-'));
   const cfg = emptyConfig();
   cfg.settings = { ...cfg.settings, timezone: 'UTC', days: [0, 1, 2, 3, 4, 5, 6], startHour: 0, endHour: 24 };
-  cfg.mailboxes = [{ id: 'm1', email: 'rahul@yourco.in', dailyLimit: 1, smtpHost: 'x', imapHost: 'x' }];
+  cfg.mailboxes = [{ id: 'm1', slot: 1, email: 'rahul@yourco.in', dailyLimit: 1, smtpHost: 'x', imapHost: 'x' }];
   cfg.templates = [{ id: 't1', name: 'T', subject: 'Hi {{first_name}}', body: 'Hello' }];
   cfg.sequences = [{ id: 's1', name: 'S', status: 'active', mailboxIds: ['m1'], first: { variants: [{ templateId: 't1', weight: 1 }] }, opened: [], notOpened: [] }];
   for (let i = 0; i < 5; i++) {
@@ -48,12 +48,12 @@ test('engine dry run plans sends and saves encrypted activity', async () => {
   }
   writeFileSync(join(dir, 'config.enc.json'), JSON.stringify(await encryptJSON(cfg, 'test passphrase 123')));
   const out = execFileSync(process.execPath, ['engine/run.mjs'], {
-    env: { ...process.env, DATA_DIR: dir, DRY_RUN: '1', OUTREACH_PASSPHRASE: 'test passphrase 123', SECRETS_JSON: '{}', SEND_GAP_MS: '0' },
+    env: { ...process.env, DATA_DIR: dir, DRY_RUN: '1', OUTREACH_PASSPHRASE: 'test passphrase 123', SEND_GAP_MS: '0' },
   }).toString();
   assert.match(out, /plan: 1 emails/);
   assert.match(out, /\[dry run\] rahul@yourco\.in → n0@x\.com: Hi N0/);
   const act = await decryptJSON(JSON.parse(readFileSync(join(dir, 'activity.enc.json'), 'utf8')), 'test passphrase 123');
   assert.equal(Object.values(act.progress).filter((p) => p.sent === 1).length, 1);
   assert.equal(act.mailboxDaily.m1.sent, 1);
-  assert.match(act.mailboxStatus.m1.error, /MAILBOX_M1/);
+  assert.match(act.mailboxStatus.m1.error, /MAILBOX_1 is missing/);
 });

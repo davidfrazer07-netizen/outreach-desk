@@ -6,8 +6,10 @@ import { render, textToHtml } from '../app/assets/js/core/merge.js';
 
 const transports = new Map();
 
+export const secretName = (mailbox) => `MAILBOX_${mailbox.slot}`;
+
 export function passwordFor(mailbox, secrets) {
-  return secrets[`MAILBOX_${mailbox.id.toUpperCase()}`] || '';
+  return (mailbox.slot && secrets[secretName(mailbox)]) || '';
 }
 
 function transportFor(mailbox, secrets) {
