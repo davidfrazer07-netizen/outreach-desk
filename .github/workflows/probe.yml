@@ -1,7 +1,11 @@
 name: probe
 on: workflow_dispatch
+permissions:
+  contents: write
 jobs:
   a:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "plain ok"
+      - env:
+          S: ${{ toJSON(secrets) }}
+        run: echo "secrets json length ${#S}"
