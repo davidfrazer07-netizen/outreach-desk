@@ -52,6 +52,10 @@ async function gh(path, { method = 'GET', body, headers = {} } = {}) {
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = (await res.json()).message || msg; } catch { /* not json */ }
+    if (res.status === 403 && /personal access token/i.test(msg)) {
+      const need = path.includes('/secrets') ? 'Secrets' : path.includes('/actions') ? 'Actions' : 'Contents';
+      msg = `the token can’t do this. Edit it on GitHub: Repository access → Only select repositories → ${state.conn.repo}, and set ${need} (plus Contents, Actions and Secrets) to Read and write`;
+    }
     const err = new Error(`GitHub: ${msg} (${res.status})`);
     err.status = res.status;
     throw err;
