@@ -1,0 +1,46 @@
+name: Outreach engine
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Plan only, don't send"
+        type: boolean
+        default: false
+
+concurrency:
+  group: outreach-engine
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      - name: Run engine
+        env:
+          OUTREACH_PASSPHRASE: ${{ secrets.OUTREACH_PASSPHRASE }}
+          TRACKER_TOKEN: ${{ secrets.TRACKER_TOKEN }}
+          SECRETS_JSON: ${{ toJSON(secrets) }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: node engine/run.mjs
+      - name: Save activity
+        run: |
+          git config user.name "outreach-engine"
+          git config user.email "outreach-engine@users.noreply.github.com"
+          git add data/activity.enc.json 2>/dev/null || true
+          if git diff --cached --quiet; then echo "nothing to save"; exit 0; fi
+          git commit -m "engine: update activity [skip ci]"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+          exit 1
