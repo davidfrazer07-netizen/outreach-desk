@@ -2,6 +2,28 @@ import { html, icon, $, fmt, pct, ago, fullName } from '../ui.js';
 import { state } from '../store.js';
 import { series, totals, previousTotals, sequenceStats, mailboxToday } from '../core/stats.js';
 import { zoned } from '../core/schedule.js';
+import { COUNTRIES, homeCountry, reachByCountry } from '../core/geo.js';
+import { mountGlobe } from './globe.js';
+
+function reachCard(reach, home) {
+  const top = reach.rows.slice(0, 7);
+  const max = Math.max(1, ...top.map((r) => r.contacts));
+  const rest = reach.rows.length - top.length;
+  return html`<section class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2>Where your emails go</h2><span class="right muted" style="font-size:12px">From phone codes and email domains</span></div>
+    <div class="reach">
+      <div class="globe-wrap"><canvas id="globe" role="img" aria-label="Globe with routes from ${COUNTRIES[home].name} to ${reach.rows.length} countries"></canvas></div>
+      <div class="reach-list">
+        ${top.length ? top.map((r) => html`<button class="reach-row" data-iso="${r.iso}">
+          <span class="name">${r.name}${r.iso === home ? html`<span class="mono muted"> · home</span>` : ''}</span>
+          <span class="mono">${fmt(r.contacts)}</span>
+          <span class="bar"><i style="width:${(r.contacts / max) * 100}%"></i></span>
+          <span class="mono muted" title="Reply rate of contacts emailed">${r.reached ? `${pct(r.replied, r.reached)} reply` : 'Not emailed yet'}</span></button>`)
+          : html`<p class="sec" style="margin:0">Upload contacts to see where they are</p>`}
+        ${rest > 0 || reach.unknown ? html`<p class="muted" style="font-size:12px;margin:8px 0 0">${[rest > 0 ? `${rest} more ${rest === 1 ? 'country' : 'countries'}` : '', reach.unknown ? `${fmt(reach.unknown)} contacts with no phone or country domain` : ''].filter(Boolean).join(' · ')}</p>` : ''}
+      </div>
+    </div></section>`;
+}
 
 let range = 14;
 
@@ -86,6 +108,8 @@ export default {
     const monthTitle = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     const empty = config.contacts.length === 0;
     const recent = activity.events.filter((e) => e.type !== 'sent').slice(-8).reverse();
+    const home = homeCountry(tz);
+    const reach = reachByCountry(config, activity, home);
 
     root.innerHTML = html`
       <div class="page-head">
@@ -125,6 +149,7 @@ export default {
           </div>
         </section>
       </div>
+      ${reachCard(reach, home)}
       <div class="duo">
         <section class="card">
           <div class="card-head"><h2>Sequences</h2><a class="right btn ghost sm" href="#/sequences">All sequences</a></div>
@@ -155,7 +180,22 @@ export default {
     draw();
     const ro = new ResizeObserver(() => draw());
     ro.observe(holder);
-    return () => { ro.disconnect(); document.querySelector('.tip')?.remove(); };
+
+    // The globe loads its map from a CDN. If that fails, the country list still shows.
+    let globe = null;
+    let gone = false;
+    const canvas = $('#globe', root);
+    mountGlobe(canvas, { home: COUNTRIES[home], targets: reach.rows }).then((g) => {
+      if (gone) g.destroy(); else globe = g;
+    }).catch(() => { canvas.closest('.globe-wrap').classList.add('off'); });
+    root.querySelectorAll('.reach-row').forEach((b) => {
+      const c = COUNTRIES[b.dataset.iso];
+      const go = () => globe?.focus(c.lon, c.lat);
+      b.addEventListener('mouseenter', go);
+      b.addEventListener('focus', go);
+      b.addEventListener('click', go);
+    });
+    return () => { gone = true; globe?.destroy(); ro.disconnect(); document.querySelector('.tip')?.remove(); };
   },
 };
 

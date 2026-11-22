@@ -57,6 +57,10 @@ const P = {
   pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 1 1 3 3L7.4 18.6a2 2 0 0 1-.9.5l-2.9.9a.5.5 0 0 1-.6-.6l.9-2.9a2 2 0 0 1 .5-.9z"/>',
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
 };
+// EVA mark: a planet with one orbit and an email travelling on it.
+export const logo = () => raw(`<svg class="logo" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="10" cy="10" rx="9" ry="3.4" transform="rotate(-24 10 10)" fill="none" stroke="var(--accent)" stroke-width="1.5"/><circle cx="18.2" cy="6.3" r="1.6" fill="var(--accent)"/></svg>`);
+export const brand = (style = '') => raw(`<div class="brand"${style ? ` style="${style}"` : ''}>${logo().s}<span>EVA</span></div>`);
+
 export const icon = (name) => raw(`<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`);
 
 export const $ = (sel, root = document) => root.querySelector(sel);

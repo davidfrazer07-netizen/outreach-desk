@@ -1,4 +1,4 @@
-# Outreach Desk
+# EVA
 
 Cold email sequences sent from your own mailboxes. It has A/B templates, follow-ups that branch on opened or not opened, a daily limit per mailbox, and an alert for every reply.
 

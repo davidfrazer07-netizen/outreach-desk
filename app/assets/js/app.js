@@ -1,6 +1,6 @@
 // Shell, router, polling and reply notifications.
 import { state, onChange, savedConnection, connect, refreshActivity, refreshRun, runEngine } from './store.js';
-import { html, icon, $, ago, toast, fullName } from './ui.js';
+import { html, icon, brand, $, ago, toast, fullName } from './ui.js';
 import connectView from './views/connect.js';
 import overview from './views/overview.js';
 import contacts from './views/contacts.js';
@@ -38,14 +38,14 @@ function shell() {
   app.innerHTML = html`
     <div class="shell">
       <aside class="side" id="side">
-        <div class="brand"><span class="mark"><i></i></span>Outreach Desk</div>
+        ${brand()}
         <nav class="nav" aria-label="Main">${ROUTES.filter((r) => !r.group).map(link)}</nav>
         <div class="nav-label">Workspace</div>
         <nav class="nav" aria-label="Workspace" style="margin-top:0">${ROUTES.filter((r) => r.group).map(link)}</nav>
         <div class="side-foot" id="side-foot"></div>
       </aside>
       <div class="main">
-        <div class="mob-bar"><button class="btn ghost icon" id="menu" aria-label="Menu">${icon('menu')}</button><div class="brand" style="padding:0"><span class="mark"><i></i></span>Outreach Desk</div></div>
+        <div class="mob-bar"><button class="btn ghost icon" id="menu" aria-label="Menu">${icon('menu')}</button>${brand('padding:0')}</div>
         <main class="page" id="view"></main>
       </div>
     </div>`.s;
@@ -96,7 +96,7 @@ function route() {
   root.classList.remove('enter');
   void root.offsetWidth;
   root.classList.add('enter');
-  document.title = `${r.label} · Outreach Desk`;
+  document.title = `${r.label} · EVA`;
   cleanup = r.view.render(root, { param }) || null;
   window.scrollTo(0, 0);
 }
@@ -161,7 +161,7 @@ window.addEventListener('beforeunload', (e) => { if (state.sync === 'pending' ||
 async function boot() {
   const saved = savedConnection();
   if (saved?.token && saved?.passphrase) {
-    app.innerHTML = '<div class="empty" style="padding-top:30vh">Opening your desk</div>';
+    app.innerHTML = '<div class="empty" style="padding-top:30vh">Opening EVA</div>';
     let remember = false;
     try { remember = !!localStorage.getItem('outreach-desk:conn'); } catch { /* storage blocked */ }
     try { await connect({ ...saved, remember }); return; } catch (err) {

@@ -1,4 +1,4 @@
-/* Outreach Desk. Graphite neutrals, one ochre accent, 4px grid. */
+/* EVA. Graphite neutrals, one ochre accent, 4px grid. */
 :root {
   --bg: #fafafa; --sunk: #f4f4f5; --card: #ffffff; --raised: #f4f4f5;
   --text: #171717; --text-2: #525252; --muted: #737373;
@@ -49,8 +49,8 @@ svg.i { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none;
   background: var(--sunk); border-right: 1px solid var(--line); padding: 16px 12px;
 }
 .brand { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 8px; font-weight: 500; font-size: 16px; }
-.brand .mark { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid var(--text); display: grid; place-items: center; }
-.brand .mark i { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); display: block; }
+.brand .logo { width: 22px; height: 22px; color: var(--text); flex: none; overflow: visible; }
+.brand span { letter-spacing: 0.04em; }
 .nav { display: flex; flex-direction: column; gap: 2px; margin-top: 24px; }
 .nav-label { margin: 24px 8px 8px; color: var(--muted); font-size: 12px; }
 .nav a {
@@ -230,6 +230,22 @@ details.was .preview { padding: 12px 16px; max-height: 200px; overflow: auto; }
 .fork::after { content: ""; position: absolute; top: -12px; left: 50%; height: 12px; border-left: 1px dashed var(--line-2); }
 .track-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 500; }
 .track-head .mono { font-weight: 400; }
+/* Overview globe */
+.reach { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 24px; align-items: center; padding: 16px 24px 24px; }
+.globe-wrap { display: grid; place-items: center; min-height: 200px; }
+.globe-wrap canvas { cursor: grab; touch-action: pan-y; display: block; }
+.globe-wrap canvas.grabbing { cursor: grabbing; }
+.globe-wrap.off { display: none; }
+.reach:has(.globe-wrap.off) { grid-template-columns: minmax(0, 1fr); }
+.reach-list { display: flex; flex-direction: column; gap: 2px; }
+.reach-row { display: grid; grid-template-columns: minmax(0, 168px) 48px minmax(60px, 1fr) 112px; gap: 12px; align-items: center; height: 36px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.reach-row:hover, .reach-row:focus-visible { background: var(--raised); outline: none; }
+.reach-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reach-row .mono { font: 12px var(--mono); text-align: right; }
+.reach-row .bar { height: 4px; border-radius: 2px; background: var(--raised); overflow: hidden; }
+.reach-row .bar i { display: block; height: 100%; background: var(--text-2); border-radius: 2px; }
+.reach-row:hover .bar i { background: var(--accent); }
+
 /* Sequence flow chart */
 .fc { display: flex; flex-direction: column; align-items: center; padding: 24px 16px 20px; border: 1px solid var(--line); border-radius: 16px;
   background-color: var(--sunk); background-image: radial-gradient(var(--line-2) 1px, transparent 1px); background-size: 16px 16px; }
@@ -324,6 +340,9 @@ dialog[open] { animation: rise 220ms var(--ease); }
   .duo, .split, .split.aside-right, .grid-2, .grid-3, .fork, .connect { grid-template-columns: minmax(0, 1fr); }
   .legend { display: none; }
   .fork::before, .fork::after { display: none; }
+  .reach { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .reach-row { grid-template-columns: minmax(0, 1fr) 40px 96px; }
+  .reach-row .bar { display: none; }
   .fc-fork { grid-template-columns: minmax(0, 1fr); gap: 32px; padding-top: 16px; }
   .fc-fork::before, .fc-fork::after { display: none; }
   .fc-pill .sub { display: none; }

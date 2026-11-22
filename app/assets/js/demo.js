@@ -41,13 +41,15 @@ export function makeDemo() {
   const activity = emptyActivity();
   const now = Date.now();
   const tz = config.settings.timezone;
+  // Mostly India, with some contacts abroad so the globe has routes: [calling code, domain]
+  const GEO = [['971', 'ae'], ['91', 'in'], ['91', 'in'], ['65', 'sg'], ['91', 'in'], ['44', 'co.uk'], ['1', 'com'], ['91', 'in'], ['91', 'in'], ['61', 'com.au'], ['91', 'in'], ['49', 'de']];
   for (let i = 0; i < 240; i++) {
     const [co, ind] = pick(CO);
     const fn = pick(FIRST); const ln = pick(LAST);
     const id = `c${i}`;
     config.contacts.push({ id, firstName: fn, lastName: ln, company: co, industry: ind,
-      email: `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@${co.toLowerCase().replace(/[^a-z]/g, '')}.in`,
-      phone: `+91 9${Math.floor(r() * 1e9).toString().padStart(9, '0')}`, createdAt: '2026-10-12', source: i < 160 ? 'd2c-founders.csv' : 'saas-ops.csv' });
+      email: `${fn.toLowerCase()}.${ln.toLowerCase()}${i}@${co.toLowerCase().replace(/[^a-z]/g, '')}.${GEO[i % GEO.length][1]}`,
+      phone: `+${GEO[i % GEO.length][0]} 9${Math.floor(r() * 1e9).toString().padStart(9, '0')}`, createdAt: '2026-10-12', source: i < 160 ? 'd2c-founders.csv' : 'saas-ops.csv' });
     if (i >= 225) continue; // a few not enrolled yet
     const seq = i < 150 ? config.sequences[0] : i < 215 ? config.sequences[1] : config.sequences[2];
     const mb = seq.mailboxIds[i % seq.mailboxIds.length];

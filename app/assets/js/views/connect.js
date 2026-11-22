@@ -1,4 +1,4 @@
-import { html, icon, $, esc } from '../ui.js';
+import { html, icon, brand, $, esc } from '../ui.js';
 import { connect, startDemo, guessRepo } from '../store.js';
 import { makeDemo } from '../demo.js';
 
@@ -31,7 +31,7 @@ export default {
     root.innerHTML = html`
     <div class="connect">
       <div class="pane">
-        <div class="brand" style="padding:0"><span class="mark"><i></i></span>Outreach Desk</div>
+        ${brand('padding:0')}
         <h1>Cold email sequences from your own mailboxes</h1>
         <p class="lede">Upload contacts, write A/B templates, branch follow-ups on opens, and get told about every reply. Data lives encrypted in your GitHub repo.</p>
         <form class="stack" id="cf" autocomplete="off">
@@ -46,7 +46,7 @@ export default {
           <label class="check"><input type="checkbox" name="remember" checked> Remember on this device</label>
           ${error ? html`<div class="note err">${error}</div>` : ''}
           <div class="row" style="margin-top:8px">
-            <button class="btn primary" type="submit" style="height:40px;padding:0 20px">${icon('lock')}Open desk</button>
+            <button class="btn primary" type="submit" style="height:40px;padding:0 20px">${icon('lock')}Open EVA</button>
             <button class="btn ghost" type="button" id="demo" style="height:40px">Try with sample data</button>
           </div>
         </form>
@@ -64,10 +64,10 @@ export default {
         await connect({ owner: f.get('owner'), repo: f.get('repo'), token: f.get('token'), passphrase: f.get('passphrase'), remember: !!f.get('remember') });
       } catch (err) {
         btn.disabled = false;
-        btn.lastChild.textContent = 'Open desk';
+        btn.lastChild.textContent = 'Open EVA';
         let note = ev.target.querySelector('.note.err');
         if (!note) { note = document.createElement('div'); note.className = 'note err'; btn.parentElement.before(note); }
-        note.textContent = err.message === 'Wrong passphrase' ? 'That passphrase doesn’t match the one this desk was created with' : esc(err.message);
+        note.textContent = err.message === 'Wrong passphrase' ? 'That passphrase doesn’t match the one your data was encrypted with' : esc(err.message);
       }
     });
     $('#demo').addEventListener('click', () => { location.hash = '#/'; startDemo(makeDemo()); });

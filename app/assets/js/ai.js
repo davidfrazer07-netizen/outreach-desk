@@ -96,7 +96,7 @@ async function chat(messages) {
   if (!key) throw new Error('Add your OpenRouter key in Settings first');
   const res = await fetch(`${API}/chat/completions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'HTTP-Referer': location.origin, 'X-Title': 'Outreach Desk' },
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'HTTP-Referer': location.origin, 'X-Title': 'EVA' },
     body: JSON.stringify({ model: model || 'openrouter/auto', messages, temperature: 0.7, max_tokens: 1500 }),
   });
   let data = null;
