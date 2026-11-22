@@ -1,8 +1,12 @@
 import { html, icon, $, $$, fmt, pct, toast, confirmDialog } from '../ui.js';
 import { state, update, newId } from '../store.js';
 import { sequenceStats, variantStats } from '../core/stats.js';
+import { flowChart, templatePalette, bindFlow } from './seq-flow.js';
 
 const LETTERS = 'ABCDEF';
+const VIEW_KEY = 'outreach-desk:seq-view';
+const getView = () => { try { return localStorage.getItem(VIEW_KEY) || 'flow'; } catch { return 'flow'; } };
+const setView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* blocked */ } };
 
 function blankSequence() {
   const t = state.config.templates;
@@ -71,7 +75,7 @@ function variantsBlock(seq, stepKey, step) {
 }
 
 function stepCard(seq, stepKey, step, n, title) {
-  return html`<div class="step">
+  return html`<div class="step" data-step="${stepKey}">
     <div class="step-head"><span class="n">${String(n).padStart(2, '0')}</span><span>${title}</span>
       ${stepKey !== 'first' ? html`<span class="right"><button class="btn ghost sm icon" data-del-step="${stepKey}" aria-label="Remove step">${icon('trash')}</button></span>` : ''}</div>
     ${variantsBlock(seq, stepKey, step)}
@@ -91,9 +95,10 @@ function track(seq, name, label, hint) {
   </div>`;
 }
 
-function editor(root, seq) {
+function editor(root, seq, focusKey) {
   const { config, activity } = state;
   const st = sequenceStats(seq, config, activity);
+  const view = getView();
   const getStep = (key) => (key === 'first' ? seq.first : seq[key.split('.')[0]][Number(key.split('.')[1])]);
   const save = (fn, rerender = true) => { update(() => fn(), { silent: true }); if (rerender) editor(root, seq); };
 
@@ -109,16 +114,20 @@ function editor(root, seq) {
         <button class="btn ghost icon danger" id="del" aria-label="Delete sequence">${icon('trash')}</button>
       </div>
     </div>
+    <div class="seg" role="group" aria-label="View" style="margin-bottom:16px">
+      <button data-view="flow" aria-pressed="${view === 'flow'}">${icon('flow')} Flow chart</button>
+      <button data-view="steps" aria-pressed="${view !== 'flow'}">${icon('sliders')} Steps and A/B</button></div>
     <div class="split aside-right">
-      <div class="flow">
+      ${view === 'flow' ? flowChart(seq, st.contacts) : html`<div class="flow">
         ${stepCard(seq, 'first', seq.first, 1, 'First email')}
         <div class="wait">${icon('split')}Then follow up based on whether they opened. A reply stops the sequence</div>
         <div class="fork">
           ${track(seq, 'opened', 'If opened', 'Warm: they’ve seen it. Leave the subject blank on a template to reply in the same thread')}
           ${track(seq, 'notOpened', 'If not opened', 'Cold: try a new subject line, or keep it short')}
         </div>
-      </div>
+      </div>`}
       <aside class="stack">
+        ${view === 'flow' ? templatePalette() : ''}
         <section class="card"><div class="card-head"><h2>Send from</h2></div>
           <div class="card-pad stack tight">
             ${config.mailboxes.length ? config.mailboxes.map((m) => html`<label class="check"><input type="checkbox" data-mb="${m.id}" ${seq.mailboxIds.includes(m.id) ? 'checked' : ''}>
@@ -135,6 +144,14 @@ function editor(root, seq) {
       </aside>
     </div>`.s;
 
+  $$('[data-view]', root).forEach((b) => b.addEventListener('click', () => { setView(b.dataset.view); editor(root, seq); }));
+  if (view === 'flow') {
+    bindFlow(root, seq, { save, inProgress: st.active, open: (key) => { setView('steps'); editor(root, seq, key); } });
+  }
+  if (focusKey) {
+    const el = $(`[data-step="${focusKey}"]`, root);
+    if (el) { el.scrollIntoView({ block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); }
+  }
   $('#name', root).addEventListener('input', (e) => update(() => { seq.name = e.target.value.slice(0, 80) || 'Untitled sequence'; }, { silent: true }));
   $$('[data-status]', root).forEach((b) => b.addEventListener('click', () => {
     if (b.dataset.status === 'active') {
