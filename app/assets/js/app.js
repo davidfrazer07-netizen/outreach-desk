@@ -141,6 +141,20 @@ setInterval(async () => {
 }, 60000);
 setInterval(() => { if (state.mode === 'github' && !document.hidden) refreshRun().catch(() => {}); footer(); }, 120000);
 
+// Tell the user when a newer dashboard has been deployed.
+const VERSION = document.querySelector('meta[name="app-version"]')?.content || 'dev';
+let updateShown = false;
+async function checkVersion() {
+  if (VERSION === 'dev' || updateShown || document.hidden) return;
+  try {
+    const page = await (await fetch(`./?check=${Date.now()}`, { cache: 'no-store' })).text();
+    const live = page.match(/name="app-version" content="([^"]+)"/)?.[1];
+    if (live && live !== VERSION) { updateShown = true; toast('A newer version of the dashboard is out. Reload the page to get it'); }
+  } catch { /* offline */ }
+}
+setInterval(checkVersion, 300000);
+document.addEventListener('visibilitychange', checkVersion);
+
 window.addEventListener('hashchange', route);
 window.addEventListener('beforeunload', (e) => { if (state.sync === 'pending' || state.sync === 'saving') e.preventDefault(); });
 
