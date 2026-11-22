@@ -1,6 +1,7 @@
 import { html, icon, $, $$, toast, download, ago, confirmDialog } from '../ui.js';
 import { state, update, setSecret, runEngine, refreshSecrets, refreshRun, forgetConnection, secretName } from '../store.js';
 import { randomId } from '../core/crypto.js';
+import { aiSettings, saveAi, forgetAi, listModels, defaultModel, checkKey } from '../ai.js';
 
 const DAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
 const ZONES = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return ['Asia/Kolkata', 'UTC', 'Europe/London', 'America/New_York']; } })();
@@ -19,6 +20,7 @@ export default {
     const sec = state.secrets;
     const run = state.lastRun;
     const hour = (n) => `${String(n).padStart(2, '0')}:00`;
+    const ai = aiSettings();
     const zones = ZONES.includes(s.timezone) ? ZONES : [s.timezone, ...ZONES];
 
     root.innerHTML = html`
@@ -62,6 +64,19 @@ export default {
             <div class="row" style="margin-top:12px"><button class="btn sm" id="fix-pass">${icon('lock')}Save passphrase secret again</button><button class="btn ghost sm" id="re-sec">${icon('refresh')}Recheck</button></div>
           </div></section>`}
 
+        <section class="card"><div class="card-head"><h2>AI writing</h2></div><div class="card-pad stack">
+          <p class="sec" style="margin:0">Powers Write with AI and Edit with AI in Templates, through OpenRouter. The key stays in this browser only and is never saved to GitHub</p>
+          ${ai.key ? html`<div class="row" style="justify-content:space-between;flex-wrap:wrap">
+              <div><div>Key saved on this device</div><div class="muted" style="font-size:12px"><code>sk-or-…${ai.key.slice(-4)}</code> <span id="ai-usage"></span></div></div>
+              <div class="row"><button class="btn sm" id="ai-check">${icon('refresh')}Check credit</button><button class="btn ghost sm danger" id="ai-forget">Remove key</button></div></div>`
+            : html`<div class="row" style="align-items:end;flex-wrap:wrap">
+              <label class="field" style="flex:1;min-width:240px"><span>OpenRouter key</span><input class="input" type="password" id="ai-key" autocomplete="off" spellcheck="false" placeholder="sk-or-v1-…"></label>
+              <button class="btn primary" id="ai-save">Save key</button></div>
+              <span class="hint">Create one at openrouter.ai/keys and give it a credit limit. Free models cost nothing</span>`}
+          <label class="field"><span>Model</span><select class="input" id="ai-model"><option>${ai.model || 'Loading models…'}</option></select>
+            <span class="hint">Free models are listed first. They can be slow or busy at peak times. Paid ones like Claude Sonnet write better and cost well under ₹1 per draft</span></label>
+        </div></section>
+
         <section class="card"><div class="card-head"><h2>Data</h2></div><div class="card-pad row" style="flex-wrap:wrap">
           <button class="btn" id="backup">${icon('download')}Download backup</button>
           <span class="muted" style="font-size:12px;flex:1;min-width:200px">A readable JSON copy of contacts, templates, sequences and settings. Store it somewhere private</span>
@@ -99,6 +114,24 @@ export default {
     $('#dry', root)?.addEventListener('click', () => runEngine(true).then(() => toast('Dry run started. Open the log in a minute')).catch((e) => toast(e.message)));
     $('#re-sec', root)?.addEventListener('click', () => { refreshSecrets().catch((e) => toast(e.message)); refreshRun().catch(() => {}); });
     $('#fix-pass', root)?.addEventListener('click', () => setSecret('OUTREACH_PASSPHRASE', state.conn.passphrase).then(() => toast('Passphrase secret saved')).catch((e) => toast(e.message)));
+    const sel = $('#ai-model', root);
+    listModels().then((models) => {
+      const cur = ai.model || defaultModel(models);
+      if (!ai.model && cur) saveAi({ model: cur });
+      const opt = (m) => html`<option value="${m.id}" ${m.id === cur ? 'selected' : ''}>${m.name}${m.free ? '' : ` · $${m.in.toFixed(2)} in, $${m.out.toFixed(2)} out per M tokens`}</option>`;
+      sel.innerHTML = html`<optgroup label="Free">${models.filter((m) => m.free).map(opt)}</optgroup><optgroup label="Paid">${models.filter((m) => !m.free).map(opt)}</optgroup>`.s;
+    }).catch((e) => { sel.innerHTML = html`<option>${ai.model || 'openrouter/auto'}</option>`.s; toast(e.message); });
+    sel.addEventListener('change', () => { saveAi({ model: sel.value }); toast('Model saved on this device'); });
+    $('#ai-save', root)?.addEventListener('click', async () => {
+      const key = $('#ai-key', root).value.trim();
+      if (!/^sk-or-[\w-]{20,}$/.test(key)) { toast('That doesn’t look like an OpenRouter key (sk-or-…)'); return; }
+      try { await checkKey(key); saveAi({ key }); toast('Key saved on this device'); this.render(root); } catch (e) { toast(e.message); }
+    });
+    $('#ai-check', root)?.addEventListener('click', () => checkKey(ai.key).then((d) => {
+      const used = `$${Number(d.usage || 0).toFixed(2)} used`;
+      $('#ai-usage', root).textContent = d.limit == null ? `· ${used}, no limit set` : `· ${used} of $${Number(d.limit).toFixed(2)}`;
+    }).catch((e) => toast(e.message)));
+    $('#ai-forget', root)?.addEventListener('click', () => { forgetAi(); toast('Key removed from this browser'); this.render(root); });
     $('#backup', root).addEventListener('click', () => download(`outreach-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state.config, null, 2), 'application/json'));
     $('#forget', root).addEventListener('click', async () => {
       if (!demo && !(await confirmDialog('Sign out on this device', 'Your token and passphrase are removed from this browser. Your data stays in GitHub.', 'Sign out'))) return;

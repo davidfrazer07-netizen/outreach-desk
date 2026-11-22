@@ -2,6 +2,7 @@ import { html, icon, $, $$, fmt, pct, toast, confirmDialog, fullName } from '../
 import { state, update, newId } from '../store.js';
 import { TAGS, render as merge, unknownTags } from '../core/merge.js';
 import { templateStats } from '../core/stats.js';
+import { aiWrite, aiEdit } from './template-ai.js';
 
 let previewContact = 0;
 
@@ -41,7 +42,7 @@ export default {
         })}</div></section>
         ${tpl ? html`<section class="card">
           <div class="card-head"><input class="input" id="tname" value="${tpl.name}" aria-label="Template name" style="font-weight:500;border-color:transparent;padding:0 8px;margin-left:-8px;flex:1;background:transparent">
-            <div class="right"><button class="btn sm" id="dup">${icon('copy')}Duplicate</button><button class="btn ghost sm icon danger" id="del" aria-label="Delete template">${icon('trash')}</button></div></div>
+            <div class="right"><button class="btn sm" id="ai-write">${icon('pen')}Write with AI</button><button class="btn sm" id="ai-edit">${icon('pen')}Edit with AI</button><button class="btn sm" id="dup">${icon('copy')}Duplicate</button><button class="btn ghost sm icon danger" id="del" aria-label="Delete template">${icon('trash')}</button></div></div>
           <div class="card-pad grid-2" style="align-items:start">
             <div class="stack">
               <label class="field"><span>Subject</span><input class="input" id="subj" value="${tpl.subject}" placeholder="Leave blank on follow-ups to reply in the same thread"></label>
@@ -91,6 +92,30 @@ export default {
     }));
     $('#next-c', root)?.addEventListener('click', () => { previewContact++; refresh(); });
     $('#dup', root).addEventListener('click', () => create(tpl));
+    const sender = state.config.mailboxes[0]?.fromName || '';
+    const apply = (d) => {
+      if (!d) return;
+      update(() => { tpl.subject = d.subject; tpl.body = d.body; }, { silent: true });
+      this.render(root, { param: tpl.id });
+      toast('Template updated');
+    };
+    $('#ai-write', root).addEventListener('click', () => aiWrite(tpl, sender).then(apply));
+    $('#ai-edit', root).addEventListener('click', async () => {
+      const d = await aiEdit(tpl, usedIn(tpl.id).map((s) => s.name));
+      if (!d?.asNew) { apply(d); return; }
+      const t = { id: newId(), name: `${tpl.name} (B)`.slice(0, 80), subject: d.subject, body: d.body };
+      update((cfg) => {
+        cfg.templates.push(t);
+        for (const seq of cfg.sequences) {
+          for (const st of [seq.first, ...seq.opened, ...seq.notOpened]) {
+            const v = st.variants.find((x) => x.templateId === tpl.id);
+            if (v) st.variants.push({ templateId: t.id, weight: v.weight });
+          }
+        }
+      }, { silent: true });
+      location.hash = `#/templates/${t.id}`;
+      toast('B variant saved');
+    });
     $('#del', root).addEventListener('click', async () => {
       const seqs = usedIn(tpl.id);
       if (seqs.length) { toast(`Used in ${seqs.map((s) => s.name).join(', ')}. Swap it out there first`); return; }
