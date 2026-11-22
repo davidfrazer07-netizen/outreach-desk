@@ -1,5 +1,6 @@
 // Rotating globe: arcs from home to every country with contacts, with emails "in flight".
 // Drag to spin; hovering a country in the list turns the globe to it. Pauses when hidden.
+// With reduced motion it still turns, slower, without the moving dots and the pulse.
 const LIBS = {
   geo: 'https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/+esm',
   topo: 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm',
@@ -68,7 +69,7 @@ export async function mountGlobe(canvas, { home, targets }) {
     if (goal) {
       rot = [rot[0] + (goal[0] - rot[0]) * 0.08, rot[1] + (goal[1] - rot[1]) * 0.08];
       if (Math.abs(goal[0] - rot[0]) < 0.1 && Math.abs(goal[1] - rot[1]) < 0.1) goal = null;
-    } else if (!dragging && !reduce && now > idleUntil) rot[0] += dt * 0.006;
+    } else if (!dragging && now > idleUntil) rot[0] += dt * (reduce ? 0.0025 : 0.006); // slower, not stopped, with reduced motion
     proj.rotate(rot);
     ctx.clearRect(0, 0, size, size);
 
