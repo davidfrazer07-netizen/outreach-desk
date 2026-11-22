@@ -66,7 +66,7 @@ export default {
         </div></section>
 
         <section class="card"><div class="card-head"><h2>Open tracking and unsubscribes</h2></div><div class="card-pad stack">
-          <label class="field"><span>Tracker URL</span><input class="input" data-s="trackerUrl" value="${s.trackerUrl}" placeholder="https://outreach-tracker.your-name.workers.dev">
+          <label class="field"><span>Tracker URL</span><input class="input" data-s="trackerUrl" value="${s.trackerUrl}" placeholder="https://eva-tracker.your-name.workers.dev">
             <span class="hint">Your Cloudflare Worker from the worker folder. Without it, everyone goes down the “not opened” track and unsubscribes work by reply only</span></label>
           <div class="row" style="justify-content:space-between;flex-wrap:wrap">
             <div><div>Tracker token</div><div class="muted" style="font-size:12px">Shared secret between the engine and the Worker</div></div>

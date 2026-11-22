@@ -17,7 +17,7 @@ Cold email sequences sent from your own mailboxes. It has A/B templates, follow-
    cd worker
    npx wrangler login
    npx wrangler kv namespace create EVENTS   # paste the id into wrangler.toml
-   npx wrangler deploy                       # prints https://outreach-tracker.<you>.workers.dev
+   npx wrangler deploy                       # prints https://eva-tracker.<you>.workers.dev
    ```
    In Settings, paste that URL into Tracker URL, then click **Create token** and run the `wrangler secret put TRACKER_TOKEN` command it shows.
 5. Upload a CSV with the columns `First name, Last name, company, email, Industry, Phone num`. Write templates, build a sequence, set it to Active, and use **Dry run** in Settings to check the plan before anything is sent.
