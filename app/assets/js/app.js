@@ -1,5 +1,5 @@
 // Shell, router, polling and reply notifications.
-import { state, onChange, savedConnection, connect, refreshActivity, refreshRun, runEngine } from './store.js';
+import { state, onChange, savedConnection, connect, refreshActivity, refreshConfig, refreshRun, runEngine } from './store.js';
 import { html, icon, brand, $, ago, toast, fullName } from './ui.js';
 import connectView from './views/connect.js';
 import overview from './views/overview.js';
@@ -138,6 +138,7 @@ function notify(newOnes) {
 setInterval(async () => {
   if (state.mode !== 'github' || document.hidden) return;
   try { notify(await refreshActivity()); } catch { /* offline */ }
+  try { await refreshConfig(); } catch { /* offline */ }
 }, 60000);
 setInterval(() => { if (state.mode === 'github' && !document.hidden) refreshRun().catch(() => {}); footer(); }, 120000);
 
@@ -154,6 +155,8 @@ async function checkVersion() {
 }
 setInterval(checkVersion, 300000);
 document.addEventListener('visibilitychange', checkVersion);
+// Coming back to this tab (say, after editing on the phone): pick up newer settings first.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshConfig().catch(() => {}); });
 
 window.addEventListener('hashchange', route);
 window.addEventListener('beforeunload', (e) => { if (state.sync === 'pending' || state.sync === 'saving') e.preventDefault(); });

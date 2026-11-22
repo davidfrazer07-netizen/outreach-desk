@@ -1,6 +1,7 @@
 // App state + GitHub sync. Config is written by the dashboard, activity by the engine.
 import { encryptJSON, decryptJSON, randomId } from './core/crypto.js';
 import { emptyActivity, emptyConfig } from './core/schedule.js';
+import { dialog } from './ui.js';
 
 const API = 'https://api.github.com';
 const CONFIG_PATH = 'data/config.enc.json';
@@ -83,6 +84,7 @@ export async function connect({ owner, repo, token, passphrase, remember }) {
   const cfg = await readEncrypted(CONFIG_PATH);
   state.config = cfg.status === 404 ? emptyConfig() : migrate(cfg.data);
   state.sha.config = cfg.sha || null;
+  state.etagConfig = cfg.etag || null;
   const act = await readEncrypted(ACTIVITY_PATH);
   state.activity = act.status === 404 ? emptyActivity() : act.data;
   state.sha.activity = act.sha || null;
@@ -129,6 +131,44 @@ export function update(mutator, { silent = false } = {}) {
   saveTimer = setTimeout(() => saveNow().catch(() => {}), 1200);
 }
 
+async function putConfig(message) {
+  const box = await encryptJSON(state.config, state.conn.passphrase);
+  const body = { message, content: btoa(JSON.stringify(box) + '\n'), branch: 'main' };
+  if (state.sha.config) body.sha = state.sha.config;
+  const r = await gh(`/contents/${CONFIG_PATH}`, { method: 'PUT', body });
+  state.sha.config = r.data.content.sha;
+  state.sync = 'saved';
+  state.syncError = '';
+}
+
+async function loadLatestConfig() {
+  const cfg = await readEncrypted(CONFIG_PATH);
+  if (cfg.status !== 200) return false;
+  state.config = migrate(cfg.data);
+  state.sha.config = cfg.sha;
+  state.etagConfig = cfg.etag;
+  state.sync = 'saved';
+  state.syncError = '';
+  emit('all');
+  return true;
+}
+
+// Another tab or device saved after this page loaded. Let the user pick which version wins.
+async function resolveConflict(message) {
+  const keep = await dialog({
+    title: 'Saved somewhere else too',
+    body: '<p class="sec" style="margin:0">EVA was saved from another tab or device after this page loaded. Keep what’s on this screen, which replaces the other changes, or load the newer version, which drops changes made here since then.</p>',
+    submit: 'Keep this version',
+    cancel: 'Load newer version',
+  });
+  if (keep) {
+    state.sha.config = (await gh(`/contents/${CONFIG_PATH}?ref=main&t=${Date.now()}`)).data?.sha || null;
+    await putConfig(message);
+  } else {
+    await loadLatestConfig();
+  }
+}
+
 export async function saveNow(message = 'Update outreach config') {
   if (state.mode !== 'github') return;
   clearTimeout(saveTimer);
@@ -136,24 +176,33 @@ export async function saveNow(message = 'Update outreach config') {
   state.sync = 'saving';
   emit('sync');
   saving = (async () => {
-    const box = await encryptJSON(state.config, state.conn.passphrase);
-    const body = { message, content: btoa(JSON.stringify(box) + '\n'), branch: 'main' };
-    if (state.sha.config) body.sha = state.sha.config;
     try {
-      const r = await gh(`/contents/${CONFIG_PATH}`, { method: 'PUT', body });
-      state.sha.config = r.data.content.sha;
-      state.sync = 'saved';
-      state.syncError = '';
+      await putConfig(message);
     } catch (err) {
-      state.sync = 'error';
-      state.syncError = err.status === 409 || err.status === 422
-        ? 'Changed in another tab. Reload to get the latest version.' : err.message;
-      throw err;
+      if (err.status !== 409 && err.status !== 422) {
+        state.sync = 'error';
+        state.syncError = err.message;
+        throw err;
+      }
+      try { await resolveConflict(message); } catch (e2) { state.sync = 'error'; state.syncError = e2.message; throw e2; }
     } finally {
+      saving = null;
       emit('sync');
     }
   })();
   return saving;
+}
+
+/** Pull in config saved from another tab or device, unless this page has unsaved edits. */
+export async function refreshConfig() {
+  if (state.mode !== 'github' || state.sync === 'pending' || state.sync === 'saving' || saving) return;
+  const r = await readEncrypted(CONFIG_PATH, state.etagConfig);
+  if (r.status !== 200) return;
+  state.etagConfig = r.etag;
+  if (r.sha === state.sha.config || state.sync === 'pending') return;
+  state.config = migrate(r.data);
+  state.sha.config = r.sha;
+  emit('all');
 }
 
 /** Poll the engine's activity file. Resolves with new non-auto replies. */
