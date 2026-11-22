@@ -184,7 +184,8 @@ export function emptyConfig() {
   return {
     version: 1,
     settings: { timezone: 'Asia/Kolkata', days: [1, 2, 3, 4, 5], startHour: 9, endHour: 18,
-      notifyEmail: '', ntfyTopic: '', trackerUrl: '', unsubscribeLine: true, postalAddress: '' },
+      notifyEmail: '', ntfyTopic: '', trackerUrl: '', unsubscribeLine: true, postalAddress: '',
+      writerName: '', writerProfile: '' },
     contacts: [], templates: [], mailboxes: [], sequences: [], enrollments: [], repliesRead: {},
   };
 }

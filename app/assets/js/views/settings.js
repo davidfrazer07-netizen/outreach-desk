@@ -12,6 +12,29 @@ function secretRow(name, have, hint) {
     <span class="tag"><span class="dot ${have ? 'ok' : 'err'}"></span>${have ? 'Set' : 'Missing'}</span></div>`;
 }
 
+function voiceCount(text = '') {
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  return words ? `${words.toLocaleString('en-IN')} words, about ${Math.round(words * 1.4).toLocaleString('en-IN')} tokens per request. Your merge tags, signature and unsubscribe line still come from this app`
+    : 'Empty, so the AI uses a plain, short default voice';
+}
+
+// Reads .md files, drops YAML front matter, and joins them under their file names.
+async function readVoiceFiles(files) {
+  let name = '';
+  const parts = [];
+  for (const f of files) {
+    let text = (await f.text()).replace(/\r/g, '');
+    const fm = text.match(/^---\n([\s\S]*?)\n---\n?/);
+    if (fm) {
+      const n = fm[1].match(/^name:\s*["']?([\w-]+)/m);
+      if (n && !name) name = n[1].split('-')[0].replace(/^\w/, (c) => c.toUpperCase());
+      text = text.slice(fm[0].length);
+    }
+    parts.push(`# File: ${f.name}\n\n${text.trim()}`);
+  }
+  return { name, text: parts.join('\n\n---\n\n') };
+}
+
 export default {
   rerenderOn: ['secrets', 'run'],
   render(root) {
@@ -77,6 +100,15 @@ export default {
             <span class="hint">Free models are listed first. They can be slow or busy at peak times. Paid ones like Claude Sonnet write better and cost well under ₹1 per draft</span></label>
         </div></section>
 
+        <section class="card"><div class="card-head"><h2>Writer voice</h2>
+            <div class="right"><button class="btn sm" id="voice-import">${icon('upload')}Import .md files</button><input type="file" id="voice-file" accept=".md,.markdown,.txt" multiple hidden></div></div>
+          <div class="card-pad stack">
+          <p class="sec" style="margin:0">Teach the AI how you write. Import a skill file and its playbook, like Alex’s SKILL.md and playbook.md, or paste your own rules and example emails. It is sent with every AI request and saved in your encrypted config</p>
+          <label class="field" style="max-width:280px"><span>Name</span><input class="input" data-s="writerName" maxlength="40" value="${s.writerName || ''}" placeholder="Alex"></label>
+          <label class="field"><span>Voice, rules and playbook</span><textarea class="input" id="voice-text" data-s="writerProfile" maxlength="60000" rows="12" placeholder="Every email: subject 3 to 7 words, body under 120 words, opens with Hi {FirstName}, problem first, one idea, soft question to close…">${s.writerProfile || ''}</textarea>
+            <span class="hint" id="voice-count">${voiceCount(s.writerProfile)}</span></label>
+        </div></section>
+
         <section class="card"><div class="card-head"><h2>Data</h2></div><div class="card-pad row" style="flex-wrap:wrap">
           <button class="btn" id="backup">${icon('download')}Download backup</button>
           <span class="muted" style="font-size:12px;flex:1;min-width:200px">A readable JSON copy of contacts, templates, sequences and settings. Store it somewhere private</span>
@@ -114,6 +146,19 @@ export default {
     $('#dry', root)?.addEventListener('click', () => runEngine(true).then(() => toast('Dry run started. Open the log in a minute')).catch((e) => toast(e.message)));
     $('#re-sec', root)?.addEventListener('click', () => { refreshSecrets().catch((e) => toast(e.message)); refreshRun().catch(() => {}); });
     $('#fix-pass', root)?.addEventListener('click', () => setSecret('OUTREACH_PASSPHRASE', state.conn.passphrase).then(() => toast('Passphrase secret saved')).catch((e) => toast(e.message)));
+    $('#voice-text', root).addEventListener('input', (e) => { $('#voice-count', root).textContent = voiceCount(e.target.value); });
+    $('#voice-import', root).addEventListener('click', () => $('#voice-file', root).click());
+    $('#voice-file', root).addEventListener('change', async (e) => {
+      const files = [...e.target.files];
+      if (!files.length) return;
+      if (files.some((f) => f.size > 200000)) { toast('One of those files is over 200 KB. Trim it first'); return; }
+      const { name, text } = await readVoiceFiles(files);
+      if (text.length > 60000) { toast('That’s more than 60,000 characters. Import fewer files or trim the playbook'); return; }
+      if (s.writerProfile?.trim() && !(await confirmDialog('Replace the writer voice', 'The current voice text is replaced by the imported files.', 'Replace'))) return;
+      update((cfg) => { cfg.settings.writerProfile = text; if (!cfg.settings.writerName && name) cfg.settings.writerName = name; }, { silent: true });
+      toast(`Imported ${files.length} file${files.length > 1 ? 's' : ''}`);
+      this.render(root);
+    });
     const sel = $('#ai-model', root);
     listModels().then((models) => {
       const cur = ai.model || defaultModel(models);

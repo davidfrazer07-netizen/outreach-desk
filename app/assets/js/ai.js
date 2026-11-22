@@ -46,16 +46,27 @@ export async function checkKey(key) {
   return (await res.json()).data || {};
 }
 
-const RULES = `You write cold B2B emails that sound like one busy person writing to another.
-Rules:
-- Plain text only. No markdown, no bullet symbols, no emoji, no exclamation marks.
+// Default voice, used when no writer profile is set in Settings.
+const STYLE = `You write cold B2B emails that sound like one busy person writing to another.
+- No markdown, no bullet symbols, no emoji, no exclamation marks.
 - Keep the body under 120 words unless told otherwise. Short paragraphs.
 - One clear, low-friction ask at the end (a question, not a meeting link).
 - No hype words (revolutionary, game-changing, synergy, unlock, supercharge) and no spam triggers (free, guarantee, act now, 100%).
-- Use only these merge tags, exactly as written: ${TAGS.map(([t]) => `{{${t}}}`).join(', ')}. A fallback goes after a pipe, like {{first_name|there}}. Never invent other tags or placeholders like [Name].
-- Do not add a signature, sign-off name, unsubscribe line or postal address. They are added automatically.
-- Do not invent facts, numbers, customer names or results that the brief doesn't give you.
-Reply with only a JSON object: {"subject": "...", "body": "..."}. Use \\n for line breaks in the body.`;
+- Do not invent facts, numbers, customer names or results that the brief doesn't give you.`;
+
+// Always applies, with or without a profile, because the sending engine depends on it.
+const TECH = `Technical rules for this tool. These win over anything in the writer profile:
+- Plain text only, no markdown.
+- Merge tags: use only ${TAGS.map(([t]) => `{{${t}}}`).join(', ')}, exactly as written. A fallback goes after a pipe, like {{first_name|there}}. If the profile writes placeholders like {FirstName} or [Company], use {{first_name}} or {{company}} instead. Never invent other tags.
+- Do not write the sign-off or signature, the unsubscribe line or a postal address. The mailbox signature is added automatically after the body.
+- Never invent client results, numbers or names that the brief or profile doesn't give you.
+- Reply with only a JSON object: {"subject": "...", "body": "...", "note": "..."}. Use \\n for line breaks in the body. "note" is one short line: which strategies you applied and the single variable you would A/B test next.`;
+
+function system(profile) {
+  const text = String(profile?.text || '').trim();
+  if (!text) return `${STYLE}\n\n${TECH}`;
+  return `You are ${profile.name || 'the writer'} described below. Write exactly in this voice, format and doctrine, and apply the playbook strategies that fit.\n\n<writer_profile>\n${text}\n</writer_profile>\n\n${TECH}`;
+}
 
 const ACTIONS = {
   shorter: 'Make it noticeably shorter. Keep the core point and the ask.',
@@ -73,7 +84,7 @@ function parse(text) {
   if (m) {
     try {
       const o = JSON.parse(m[0]);
-      if (typeof o.body === 'string') return { subject: String(o.subject ?? '').trim(), body: o.body.replace(/\r/g, '').trim() };
+      if (typeof o.body === 'string') return { subject: String(o.subject ?? '').trim(), body: o.body.replace(/\r/g, '').trim(), note: String(o.note || '').trim() };
     } catch { /* fall through */ }
   }
   if (!t) throw new Error('The model returned nothing. Try again or pick another model');
@@ -86,7 +97,7 @@ async function chat(messages) {
   const res = await fetch(`${API}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'HTTP-Referer': location.origin, 'X-Title': 'Outreach Desk' },
-    body: JSON.stringify({ model: model || 'openrouter/auto', messages, temperature: 0.7, max_tokens: 900 }),
+    body: JSON.stringify({ model: model || 'openrouter/auto', messages, temperature: 0.7, max_tokens: 1500 }),
   });
   let data = null;
   try { data = await res.json(); } catch { /* not json */ }
@@ -101,20 +112,24 @@ async function chat(messages) {
 }
 
 /** A new email from a short brief. */
-export function writeEmail({ audience, offer, tone, length, kind, notes, sender }) {
+export const PHASES = ['Not set', 'Awareness: give first, no meeting ask', 'Sell'];
+
+export function writeEmail({ audience, offer, tone, length, kind, phase, notes, sender }, profile) {
   const brief = [
-    `Audience: ${audience}`, `What we offer: ${offer}`, `Tone: ${tone}`, `Length: ${length}`,
-    `Email type: ${kind === 'followup' ? 'a follow-up to an earlier email with no reply. Use an empty subject so it threads' : 'the first email in a cold sequence'}`,
+    `Audience: ${audience}`, `What we offer: ${offer}`,
+    profile?.text ? '' : `Tone: ${tone}`, profile?.text ? '' : `Length: ${length}`,
+    phase && phase !== PHASES[0] ? `Phase: ${phase}` : '',
+    `Email type: ${kind === 'followup' ? 'a follow-up to an earlier email with no reply. It must add something new. Use an empty subject so it threads' : 'the first email in a cold sequence'}`,
     sender ? `Sender: ${sender}` : '', notes ? `Extra notes: ${notes}` : '',
   ].filter(Boolean).join('\n');
-  return chat([{ role: 'system', content: RULES }, { role: 'user', content: brief }]);
+  return chat([{ role: 'system', content: system(profile) }, { role: 'user', content: brief }]);
 }
 
 /** A rewrite of an existing template. */
-export function editEmail({ subject, body }, { action, instruction }) {
+export function editEmail({ subject, body }, { action, instruction }, profile) {
   const ask = [ACTIONS[action], instruction].filter(Boolean).join('\n');
   return chat([
-    { role: 'system', content: RULES },
+    { role: 'system', content: system(profile) },
     { role: 'user', content: `Here is the current email.\nSubject: ${subject || '(empty, sent in the same thread)'}\nBody:\n${body}\n\nChange it like this:\n${ask}\nKeep every merge tag that still makes sense.` },
   ]);
 }
