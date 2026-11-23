@@ -4,6 +4,8 @@
 //   GET  /u/<token>       → unsubscribe confirmation page (POST for one-click)
 //   GET  /api/events      → pending events (auth)
 //   POST /api/ack         → delete delivered events (auth)
+// Cron (every 15 min): starts the engine workflow, because GitHub's own schedule runs only every few hours.
+// Needs secret GH_DISPATCH_TOKEN (fine-grained, this repo only, Actions: read and write).
 
 const GIF = Uint8Array.from(atob('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'), (c) => c.charCodeAt(0));
 const TOKEN_RE = /^[a-f0-9]{24}$/;
@@ -65,5 +67,20 @@ export default {
       }
     }
     return new Response('not found', { status: 404 });
+  },
+
+  async scheduled(event, env, ctx) {
+    if (!env.GH_DISPATCH_TOKEN) return;
+    const res = await fetch(`https://api.github.com/repos/${env.GH_REPO}/actions/workflows/engine.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${env.GH_DISPATCH_TOKEN}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'eva-tracker',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+    if (!res.ok) console.log(`dispatch failed: ${res.status} ${await res.text()}`);
   },
 };

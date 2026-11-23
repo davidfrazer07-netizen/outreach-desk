@@ -7,3 +7,10 @@ compatibility_date = "2026-10-01"
 [[kv_namespaces]]
 binding = "EVENTS"
 id = "1948800c80834a86af0f08eaa4754e76"
+
+[vars]
+GH_REPO = "davidfrazer07-netizen/outreach-desk"
+
+# Start the engine every 15 minutes (GitHub's own cron is throttled to every few hours)
+[triggers]
+crons = ["*/15 * * * *"]
