@@ -88,28 +88,52 @@ function fixture(n, limit) {
   return config;
 }
 
-test('daily limits per mailbox and the send window are respected', () => {
-  const config = fixture(20, 5);
+test('sends are spread evenly across the window, not front-loaded', () => {
+  const config = fixture(20, 10); // 09:00-18:00 = 540 min; m1 10/day → one every 54 min, m2 2/day → every 270
   const act = emptyActivity();
-  const mon1730 = Date.UTC(2026, 10, 16, 17, 30); // window ends 18:00 → 30 min → 2 runs
-  const plan = planRun(config, act, mon1730);
-  const per = (id) => plan.filter((p) => p.mailbox.id === id).length;
-  assert.equal(per('m1'), 3); // ceil(5/2)
-  assert.equal(per('m2'), 1); // ceil(2/2)
+  const at = (h, m = 0) => Date.UTC(2026, 10, 16, h, m);
+  const send = (now) => {
+    const plan = planRun(config, act, now);
+    for (const item of plan) recordSend(act, item, { messageId: `<${now}${item.enrollment.id}@x>`, token: 't', subject: 'Hi', at: new Date(now).toISOString(), today: '2026-11-16' });
+    return plan;
+  };
+  const times = { m1: [], m2: [] };
+  for (let t = at(9); t < at(18); t += 15 * 60000) for (const p of send(t)) times[p.mailbox.id].push(new Date(t).toISOString().slice(11, 16));
+  assert.equal(times.m1.length, 10);
+  assert.equal(times.m2.length, 2);
+  assert.equal(times.m1[0], '09:00');
+  assert.ok(times.m1[9] >= '17:00', `last send ${times.m1[9]} should be late in the day`);
+  assert.ok(times.m1.slice(0, 5).every((x) => x < '13:00') && times.m1.slice(5).every((x) => x >= '13:00'), times.m1.join(' '));
+  assert.deepEqual(times.m2, ['09:00', '13:30']);
   assert.equal(planRun(config, act, Date.UTC(2026, 10, 15, 12)).length, 0); // Sunday
   assert.equal(planRun(config, act, Date.UTC(2026, 10, 16, 20)).length, 0); // after hours
-  assert.equal(windowMinutesLeft(new Date(mon1730), config.settings), 30);
+  assert.equal(windowMinutesLeft(new Date(at(17, 30)), config.settings), 30);
+});
+
+test('a mailbox gap setting paces sends, and a late run does not burst', () => {
+  const config = fixture(20, 10);
+  config.mailboxes[0].gapMinutes = 30;
+  const act = emptyActivity();
+  const at = (h, m = 0) => Date.UTC(2026, 10, 16, h, m);
+  const per = (plan) => plan.filter((p) => p.mailbox.id === 'm1');
+  // No runs all morning: the first run at noon sends 1, not the 6 that were "due"
+  const noon = per(planRun(config, act, at(12)));
+  assert.equal(noon.length, 1);
+  for (const item of noon) recordSend(act, item, { messageId: '<a@x>', token: 't', subject: 'Hi', at: new Date(at(12)).toISOString(), today: '2026-11-16' });
+  assert.equal(per(planRun(config, act, at(12, 15))).length, 0); // 15 min < 30 min gap
+  assert.equal(per(planRun(config, act, at(12, 30))).length, 1);
 });
 
 test('recordSend counts toward the limit; suppressed contacts are skipped', () => {
   const config = fixture(10, 3);
   const act = emptyActivity();
-  const now = Date.UTC(2026, 10, 16, 17, 50); // last run of the day → full budget
-  const plan = planRun(config, act, now);
-  assert.equal(plan.length, 5); // 3 + 2
-  for (const item of plan) recordSend(act, item, { messageId: `<${item.enrollment.id}@x>`, token: 't', subject: 'Hi', at: new Date(now).toISOString(), today: '2026-11-16' });
-  assert.equal(planRun(config, act, now + 60000).length, 0);
-  assert.equal(act.daily['2026-11-16'].sent, 5);
+  const start = Date.UTC(2026, 10, 16, 9);
+  for (let t = start; t < Date.UTC(2026, 10, 16, 18); t += 15 * 60000) {
+    for (const item of planRun(config, act, t)) recordSend(act, item, { messageId: `<${t}${item.enrollment.id}@x>`, token: 't', subject: 'Hi', at: new Date(t).toISOString(), today: '2026-11-16' });
+  }
+  assert.equal(act.daily['2026-11-16'].sent, 5); // 3 + 2, never more
+  assert.equal(planRun(config, act, Date.UTC(2026, 10, 16, 17, 59)).length, 0);
+  const now = start;
   act.suppressed['c9@y.com'] = 'unsubscribed';
   assert.ok(!planRun(config, act, now + DAY).some((p) => p.contact.email === 'c9@y.com'));
 });

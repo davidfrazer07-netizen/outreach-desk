@@ -10,6 +10,12 @@
 const DAY = 86400000;
 const RUN_MINUTES = 15;
 
+/** Minutes between two sends from a mailbox: its own setting, or the window spread over the daily limit. */
+export function mailboxGap(m, windowLen) {
+  if (m.gapMinutes > 0) return m.gapMinutes;
+  return windowLen / Math.max(1, m.dailyLimit || 1);
+}
+
 export function zoned(date, timeZone) {
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -101,14 +107,25 @@ export function planRun(config, activity, now) {
   const boxes = new Map(config.mailboxes.map((m) => [m.id, m]));
   const suppressed = activity.suppressed || {};
 
-  // Per-mailbox budget for this run: spread the rest of today's limit over the remaining runs.
+  // Per-mailbox budget for this run. Sends are spaced evenly across the window: one every
+  // `gap` minutes, where gap is the mailbox's own setting or window length / daily limit.
+  // A run that comes late catches up by at most one run's worth, so nothing goes out in a burst.
+  const windowLen = Math.max(1, ((settings.endHour ?? 17) - (settings.startHour ?? 9)) * 60);
+  const elapsed = windowLen - minsLeft;
   const budget = new Map();
   for (const m of config.mailboxes) {
-    if (m.paused) { budget.set(m.id, 0); continue; }
+    const limit = m.dailyLimit || 0;
+    if (m.paused || limit <= 0) { budget.set(m.id, 0); continue; }
     const d = (activity.mailboxDaily || {})[m.id];
     const sentToday = d && d.date === today ? d.sent : 0;
-    const remaining = Math.max(0, (m.dailyLimit || 0) - sentToday);
-    budget.set(m.id, Math.min(remaining, Math.ceil(remaining / runsLeft)));
+    const gap = mailboxGap(m, windowLen);
+    const dueByNow = Math.min(limit, Math.floor(elapsed / gap) + 1);
+    const perRun = Math.max(1, Math.floor(RUN_MINUTES / gap));
+    let n = Math.max(0, Math.min(dueByNow - sentToday, perRun, limit - sentToday));
+    // A gap the user set is also a minimum since the last send, so catching up after missed runs
+    // doesn't break it. Half a run of slack, since runs land on a 15-minute grid.
+    if (n && m.gapMinutes > 0 && d?.date === today && d.lastAt && now - new Date(d.lastAt).getTime() < (m.gapMinutes - RUN_MINUTES / 2) * 60000) n = 0;
+    budget.set(m.id, n);
   }
 
   const candidates = [];
@@ -153,7 +170,7 @@ export function recordSend(activity, item, { messageId, token, subject, at, toda
   p.messages.push({ id: messageId, token, stepKey: item.stepKey, templateId: item.templateId, at });
 
   const md = activity.mailboxDaily[item.mailbox.id];
-  activity.mailboxDaily[item.mailbox.id] = md && md.date === today ? { date: today, sent: md.sent + 1 } : { date: today, sent: 1 };
+  activity.mailboxDaily[item.mailbox.id] = { date: today, sent: md && md.date === today ? md.sent + 1 : 1, lastAt: at };
   bump(activity, today, 'sent');
   bumpVariant(activity, item.sequence.id, item.stepKey, item.templateId, 'sent');
   pushEvent(activity, { t: at, type: 'sent', enrollmentId: item.enrollment.id, stepKey: item.stepKey });

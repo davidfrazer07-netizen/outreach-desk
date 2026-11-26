@@ -1,8 +1,25 @@
 import { html, icon, $$, fmt, toast, dialog, confirmDialog, ago } from '../ui.js';
 import { state, update, newId, setSecret, secretName, freeSlot, MAX_MAILBOXES } from '../store.js';
 import { mailboxToday } from '../core/stats.js';
-import { zoned } from '../core/schedule.js';
+import { zoned, mailboxGap } from '../core/schedule.js';
 import { isEmail } from '../core/csv.js';
+
+const GAPS = [0, 15, 20, 30, 45, 60, 90, 120];
+const windowLen = () => Math.max(1, ((state.config.settings.endHour ?? 17) - (state.config.settings.startHour ?? 9)) * 60);
+const mins = (n) => {
+  const r = Math.round(n);
+  if (r < 60) return `${r} minutes`;
+  if (r % 60 === 0) return r === 60 ? '1 hour' : `${r / 60} hours`;
+  return `${Math.floor(r / 60)}h ${r % 60}m`;
+};
+/** One line telling the user what the pace means for their day. */
+function paceHint(limit, gapMinutes) {
+  const w = windowLen();
+  const gap = mailboxGap({ dailyLimit: limit, gapMinutes }, w);
+  const fits = Math.floor(w / gap) + 1;
+  if (gapMinutes > 0 && fits < limit) return `At this pace only ${fits} of ${limit} fit in your send window. Shorten the gap or lower the daily limit`;
+  return `About one email every ${mins(gap)}, spread across your send window`;
+}
 
 const PRESETS = {
   gmail: { label: 'Gmail or Google Workspace', smtpHost: 'smtp.gmail.com', smtpPort: 465, imapHost: 'imap.gmail.com', imapPort: 993, hint: 'Turn on 2-step verification, then create an app password at myaccount.google.com/apppasswords' },
@@ -36,8 +53,10 @@ async function editMailbox(existing) {
       <div class="grid-2">
         <label class="field"><span>Emails per day</span><input class="input num" name="dailyLimit" type="number" min="1" max="500" required value="${m.dailyLimit}">
           <span class="hint">Start new mailboxes at 10 to 20 and raise slowly</span></label>
-        <label class="field"><span>Login username</span><input class="input" name="user" value="${m.user || ''}" placeholder="Same as the email address"></label>
+        <label class="field"><span>Send one email every</span><select class="input" name="gapMinutes">${GAPS.map((g) => html`<option value="${g}" ${g === (m.gapMinutes || 0) ? 'selected' : ''}>${g ? mins(g) : 'Spread evenly'}</option>`)}</select>
+          <span class="hint" data-pace>${paceHint(m.dailyLimit, m.gapMinutes || 0)}</span></label>
       </div>
+      <label class="field"><span>Login username</span><input class="input" name="user" value="${m.user || ''}" placeholder="Same as the email address"></label>
       <details ${pk === 'custom' ? 'open' : ''}><summary class="sec" style="cursor:pointer">Server settings</summary>
         <div class="grid-2" style="margin-top:12px">
           <label class="field"><span>SMTP host</span><input class="input" name="smtpHost" value="${m.smtpHost}"></label>
@@ -61,6 +80,7 @@ async function editMailbox(existing) {
       return {
         ...m, email, fromName: f.fromName.value.trim(), user: f.user.value.trim() || email,
         dailyLimit: Math.max(1, Math.min(500, Math.round(Number(f.dailyLimit.value) || 1))),
+        gapMinutes: GAPS.includes(Number(f.gapMinutes.value)) ? Number(f.gapMinutes.value) : 0,
         smtpHost: f.smtpHost.value.trim(), smtpPort: Number(f.smtpPort.value) || 465,
         imapHost: f.imapHost.value.trim(), imapPort: Number(f.imapPort.value) || 993,
         signature: f.signature.value.slice(0, 1000), label: f.fromName.value.trim() || email,
@@ -74,6 +94,13 @@ async function editMailbox(existing) {
   });
   toast(existing ? 'Mailbox saved' : `${res.email} added`);
 }
+
+// Keep the pace line in step with the limit and the gap while the dialog is open
+document.addEventListener('input', (e) => {
+  const f = e.target.form;
+  if (!f || !['dailyLimit', 'gapMinutes'].includes(e.target.name) || !f.querySelector('[data-pace]')) return;
+  f.querySelector('[data-pace]').textContent = paceHint(Math.max(1, Number(f.dailyLimit.value) || 1), Number(f.gapMinutes.value) || 0);
+});
 
 // Provider preset → fill server fields while the dialog is open
 document.addEventListener('change', (e) => {
